@@ -1,13 +1,11 @@
 // contracts/Peach.sol
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.9;
+pragma solidity 0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Capped.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-
-import "hardhat/console.sol";
 
 contract Peach is ERC20, Pausable, Ownable {
     uint256 public constant RESERVE = 6727500 ether;
@@ -19,28 +17,34 @@ contract Peach is ERC20, Pausable, Ownable {
     uint256 public constant NUM_BAEPES = 2221;
 
     address public authSigner;
-    uint256 public t0;
 
     mapping(uint256 => uint256) public stakedTime;
     mapping(uint256 => address) public staker;
 
+    event AuthSignerSet(address indexed newSigner);
+
     constructor(address _authSigner) ERC20("PEACH", "PEACH") {
-        _mint(msg.sender, RESERVE);
-        t0 = block.timestamp;
+        require(_authSigner != address(0), "Invalid addr");
         authSigner = _authSigner;
-        stakedTime[0] = block.timestamp + 365 * 50 days;
+        _mint(msg.sender, RESERVE);
+        // Set stakedTime of token ID 0 to max uint256 value to effectively disable staking of this tokenID 
+        stakedTime[
+            0
+        ] = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff;
     }
 
-    function pause() public onlyOwner {
+    function pause() external onlyOwner {
         _pause();
     }
 
-    function unpause() public onlyOwner {
+    function unpause() external onlyOwner {
         _unpause();
     }
 
-    function setAuthSigner(address _authSigner) public onlyOwner {
+    function setAuthSigner(address _authSigner) external onlyOwner {
+        require(_authSigner != address(0), "Invalid addr");
         authSigner = _authSigner;
+        emit AuthSignerSet(_authSigner);
     }
 
     function _beforeTokenTransfer(
@@ -98,18 +102,20 @@ contract Peach is ERC20, Pausable, Ownable {
         super._mint(staker[tokenId], claimable(tokenId));
     }
 
-    function claim(uint256[] calldata tokenIds) public {
-		for (uint i=0; i<tokenIds.length; i++) {
+    function claim(uint256[] calldata tokenIds) external {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
             require(staker[tokenIds[i]] == msg.sender, "Access denied.");
             super._mint(msg.sender, claimable(tokenIds[i]));
-            stakedTime[tokenIds[i]] = block.timestamp;
+            stakedTime[tokenIds[i]] = block.timestamp - (block.timestamp - stakedTime[tokenIds[i]]) % 1 days;
         }
     }
 
     function claimable(uint256 tokenId) public view returns (uint256 sum) {
         if (stakedTime[tokenId] == 0) return 0;
         uint256 daysStaked = (block.timestamp - stakedTime[tokenId]) / 1 days;
-        uint256 dailyReward = isBaepe(tokenId) ? BAEPE_DAILY_REWARD : WUKONG_DAILY_REWARD;
+        uint256 dailyReward = isBaepe(tokenId)
+            ? BAEPE_DAILY_REWARD
+            : WUKONG_DAILY_REWARD;
         sum = daysStaked * dailyReward;
     }
 
@@ -121,14 +127,17 @@ contract Peach is ERC20, Pausable, Ownable {
         uint256[] calldata tokenIds,
         uint256 ts,
         bytes memory sig
-    ) public {
+    ) external {
         bytes memory b = abi.encodePacked(tokenIds, msg.sender, ts);
         require(recoverSigner(keccak256(b), sig) == authSigner, "Invalid sig");
         require(ts <= block.timestamp, "Invalid ts");
 
-		for (uint i=0; i<tokenIds.length; i++) {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
             require(staker[tokenIds[i]] != msg.sender, "Staked");
-            require(tokenIds[i] <= NUM_BAEPES + NUM_WUKONGS, "Invalid token id");
+            require(
+                tokenIds[i] <= NUM_BAEPES + NUM_WUKONGS,
+                "Invalid token id"
+            );
             require(stakedTime[tokenIds[i]] < ts, "Time is a river");
             if (stakedTime[tokenIds[i]] > 0) sendPrevEarnings(tokenIds[i]);
             stakedTime[tokenIds[i]] = ts;
@@ -136,12 +145,16 @@ contract Peach is ERC20, Pausable, Ownable {
         }
     }
 
-    function listStakedTokens(address wallet) public view returns (uint256[] memory, uint256[] memory) {
+    function listStakedTokens(address wallet)
+        external
+        view
+        returns (uint256[] memory, uint256[] memory)
+    {
         uint256 count = countStakedTokens(wallet);
         uint256[] memory staked = new uint256[](count);
         uint256[] memory stakeTimes = new uint256[](count);
         uint256 j;
-        for (uint256 i=0; i<= NUM_BAEPES + NUM_WUKONGS; i++) {
+        for (uint256 i = 0; i <= NUM_BAEPES + NUM_WUKONGS; i++) {
             if (staker[i] == wallet) {
                 staked[j] = i;
                 stakeTimes[j++] = stakedTime[i];
@@ -150,9 +163,13 @@ contract Peach is ERC20, Pausable, Ownable {
         return (staked, stakeTimes);
     }
 
-    function countStakedTokens(address wallet) public view returns (uint256 count) {
+    function countStakedTokens(address wallet)
+        public
+        view
+        returns (uint256 count)
+    {
         count = 0;
-        for (uint256 i=0; i<= NUM_BAEPES + NUM_WUKONGS; i++) {
+        for (uint256 i = 0; i <= NUM_BAEPES + NUM_WUKONGS; i++) {
             if (staker[i] == wallet) count++;
         }
     }

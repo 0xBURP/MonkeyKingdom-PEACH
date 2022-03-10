@@ -13,6 +13,9 @@
   "keywords": ["Monkey Kingdom", "$PEACH", "ERC-20", "Solana", "Staking"],
   "author": "0xBURP",
   "license": "UNLICENSED",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.5.0"
+  },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.5",
     "@nomiclabs/hardhat-etherscan": "^3.0.1",
@@ -38,6 +41,7 @@
     "ethers": "^5.5.4",
     "hardhat": "^2.8.4",
     "hardhat-gas-reporter": "^1.0.8",
+    "lodash": "^4.17.21",
     "nodemon": "^2.0.15",
     "prettier": "^2.5.1",
     "prettier-plugin-solidity": "^1.0.0-beta.13",
@@ -45,8 +49,6 @@
     "solidity-coverage": "^0.7.20",
     "ts-node": "^10.5.0",
     "typechain": "^5.2.0",
-    "typescript": "^4.5.5",
-    "@openzeppelin/contracts": "^4.5.0",
-    "lodash": "^4.17.21"
+    "typescript": "^4.5.5"
   }
 }
