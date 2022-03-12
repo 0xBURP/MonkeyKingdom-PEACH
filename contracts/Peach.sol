@@ -99,13 +99,13 @@ contract Peach is ERC20, Pausable, Ownable {
     }
 
     function sendPrevEarnings(uint256 tokenId) private {
-        super._mint(staker[tokenId], claimable(tokenId));
+        _mint(staker[tokenId], claimable(tokenId));
     }
 
     function claim(uint256[] calldata tokenIds) external {
         for (uint256 i = 0; i < tokenIds.length; i++) {
             require(staker[tokenIds[i]] == msg.sender, "Access denied.");
-            super._mint(msg.sender, claimable(tokenIds[i]));
+            _mint(msg.sender, claimable(tokenIds[i]));
             stakedTime[tokenIds[i]] = block.timestamp - (block.timestamp - stakedTime[tokenIds[i]]) % 1 days;
         }
     }
